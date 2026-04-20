@@ -5,25 +5,25 @@ import java.util.List;
 import org.springframework.web.bind.annotation.*;
 
 import com.mealgo.backend.entity.Food;
-import com.mealgo.backend.repository.FoodRepository;
+import com.mealgo.backend.service.FoodService;
+
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/foods")
+@RequiredArgsConstructor
 @CrossOrigin
 public class FoodController {
-    private final FoodRepository foodRepository;
 
-    public FoodController(FoodRepository foodRepository){
-        this.foodRepository = foodRepository;
-    }
+    private final FoodService foodService;
 
-    @GetMapping //API GET lấy tất cả foods
+    @GetMapping
     public List<Food> getAllFoods(){
-        return foodRepository.findAll();
+        return foodService.getAllFoods();
     }
 
-    @GetMapping("/{id}") //API GET lấy food theo id
+    @GetMapping("/{id}")
     public Food getFoodById(@PathVariable Long id){
-        return foodRepository.findById(id).orElse(null);
+        return foodService.getFoodById(id);
     }
 }
