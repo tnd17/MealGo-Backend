@@ -1,6 +1,7 @@
 package com.mealgo.backend.service;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -67,7 +68,8 @@ public class OrderService {
         List<OrderItem> preparedOrderItems = new ArrayList<>();
 
         for (OrderItemRequest itemRequest : request.getItems()) {
-            if (itemRequest.getFoodId() == null || itemRequest.getQuantity() == null || itemRequest.getQuantity() <= 0) {
+            if (itemRequest.getFoodId() == null || itemRequest.getQuantity() == null
+                    || itemRequest.getQuantity() <= 0) {
                 continue;
             }
 
@@ -99,6 +101,10 @@ public class OrderService {
         order.setNote(request.getNote());
         order.setStatus("PENDING");
         order.setTotalAmount(totalAmount);
+
+        order.setPaymentMethod(request.getPaymentMethod());
+        order.setPaymentStatus("UNPAID");
+
         order = orderRepository.save(order);
 
         for (OrderItem preparedOrderItem : preparedOrderItems) {
@@ -116,12 +122,24 @@ public class OrderService {
         List<OrderHistoryResponse> result = new ArrayList<>();
     
         for(Order order : orders){
+    
+            List<String> itemNames = new ArrayList<>();
+    
+            for(OrderItem item : order.getOrderItems()){
+                itemNames.add(
+                    item.getFood().getName() + " x" + item.getQuantity()
+                );
+            }
+    
             result.add(
                 new OrderHistoryResponse(
                     order.getId(),
                     order.getTotalAmount(),
                     order.getStatus(),
-                    order.getCreatedAt().toString()
+                    order.getCreatedAt().toString(),
+                    order.getPaymentMethod(),
+                    order.getPaymentStatus(),
+                    itemNames
                 )
             );
         }
@@ -129,42 +147,63 @@ public class OrderService {
         return result;
     }
 
-    public List<AdminOrderResponse> getAllOrdersForAdmin(){
+    public List<AdminOrderResponse> getAllOrdersForAdmin() {
 
         List<Order> orders = orderRepository.findAllByOrderByIdDesc();
-    
+
         List<AdminOrderResponse> result = new ArrayList<>();
-    
-        for(Order order : orders){
+
+        for (Order order : orders) {
             result.add(
-                new AdminOrderResponse(
-                    order.getId(),
-                    order.getFullName(),
-                    order.getTotalAmount(),
-                    order.getStatus(),
-                    order.getCreatedAt().toString()
-                )
-            );
+                    new AdminOrderResponse(
+                            order.getId(),
+                            order.getFullName(),
+                            order.getTotalAmount(),
+                            order.getStatus(),
+                            order.getCreatedAt().toString()));
         }
-    
+
         return result;
     }
-    
+
     @Transactional
-    public String updateOrderStatus(Long orderId, String status){
-    
+    public String updateOrderStatus(Long orderId, String status) {
+
         Optional<Order> optional = orderRepository.findById(orderId);
-    
-        if(optional.isEmpty()){
+
+        if (optional.isEmpty()) {
             return "Order not found";
         }
-    
+
         Order order = optional.get();
-    
+
         order.setStatus(status);
-    
+
         orderRepository.save(order);
-    
+
         return "Updated successfully";
+    }
+
+    @Transactional
+    public String payOrder(Long orderId, boolean success) {
+
+        Optional<Order> optional = orderRepository.findById(orderId);
+
+        if (optional.isEmpty())
+            return "Order not found";
+
+        Order order = optional.get();
+
+        if (success) {
+            order.setPaymentStatus("PAID");
+            order.setStatus("CONFIRMED");
+            order.setPaidAt(LocalDateTime.now());
+        } else {
+            order.setPaymentStatus("FAILED");
+        }
+
+        orderRepository.save(order);
+
+        return "Updated";
     }
 }

@@ -32,7 +32,7 @@ public class OrderController {
 
     // admin lấy tất cả đơn
     @GetMapping("/admin")
-    public List<AdminOrderResponse> getAllOrders(){
+    public List<AdminOrderResponse> getAllOrders() {
         return orderService.getAllOrdersForAdmin();
     }
 
@@ -40,7 +40,16 @@ public class OrderController {
     @PutMapping("/{id}/status")
     public String updateStatus(
             @PathVariable Long id,
-            @RequestParam String status){
+            @RequestParam String status) {
         return orderService.updateOrderStatus(id, status);
+    }
+
+    // api pay order
+    @PutMapping("/{id}/pay")
+    public String payOrder(
+            @PathVariable Long id,
+            @RequestParam boolean success) {
+
+        return orderService.payOrder(id, success);
     }
 }
