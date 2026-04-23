@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.mealgo.backend.dto.CreateOrderRequest;
+import com.mealgo.backend.dto.OrderHistoryResponse;
 import com.mealgo.backend.dto.OrderItemRequest;
 import com.mealgo.backend.dto.OrderResponse;
 import com.mealgo.backend.entity.Food;
@@ -105,5 +106,25 @@ public class OrderService {
         }
 
         return OrderResponse.success("Order created successfully", order.getId());
+    }
+
+    public List<OrderHistoryResponse> getOrdersByUser(Long userId){
+
+        List<Order> orders = orderRepository.findByUserIdOrderByIdDesc(userId);
+    
+        List<OrderHistoryResponse> result = new ArrayList<>();
+    
+        for(Order order : orders){
+            result.add(
+                new OrderHistoryResponse(
+                    order.getId(),
+                    order.getTotalAmount(),
+                    order.getStatus(),
+                    order.getCreatedAt().toString()
+                )
+            );
+        }
+    
+        return result;
     }
 }
