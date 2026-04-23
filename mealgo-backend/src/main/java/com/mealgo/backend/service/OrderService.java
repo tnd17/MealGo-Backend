@@ -19,6 +19,7 @@ import com.mealgo.backend.repository.FoodRepository;
 import com.mealgo.backend.repository.OrderItemRepository;
 import com.mealgo.backend.repository.OrderRepository;
 import com.mealgo.backend.repository.UserRepository;
+import com.mealgo.backend.dto.AdminOrderResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -126,5 +127,44 @@ public class OrderService {
         }
     
         return result;
+    }
+
+    public List<AdminOrderResponse> getAllOrdersForAdmin(){
+
+        List<Order> orders = orderRepository.findAllByOrderByIdDesc();
+    
+        List<AdminOrderResponse> result = new ArrayList<>();
+    
+        for(Order order : orders){
+            result.add(
+                new AdminOrderResponse(
+                    order.getId(),
+                    order.getFullName(),
+                    order.getTotalAmount(),
+                    order.getStatus(),
+                    order.getCreatedAt().toString()
+                )
+            );
+        }
+    
+        return result;
+    }
+    
+    @Transactional
+    public String updateOrderStatus(Long orderId, String status){
+    
+        Optional<Order> optional = orderRepository.findById(orderId);
+    
+        if(optional.isEmpty()){
+            return "Order not found";
+        }
+    
+        Order order = optional.get();
+    
+        order.setStatus(status);
+    
+        orderRepository.save(order);
+    
+        return "Updated successfully";
     }
 }
