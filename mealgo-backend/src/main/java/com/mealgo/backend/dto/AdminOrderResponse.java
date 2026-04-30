@@ -14,4 +14,7 @@ public class AdminOrderResponse {
     private Double totalAmount;
     private String status;
     private String createdAt;
+    private String accountType;
+    private String paymentMethod;
+    private String paymentStatus;
 }

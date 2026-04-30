@@ -31,7 +31,7 @@ public class Order {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
     @Column(nullable = false)
@@ -59,6 +59,13 @@ public class Order {
 
     @Column(nullable = false)
     private String paymentStatus = "UNPAID";
+
+    @Column
+    private String email; // email cho guest
+
+    @Column(nullable = false)
+    private String accountType = "CUSTOMER";
+    // CUSTOMER | GUEST
 
     private LocalDateTime paidAt;
 

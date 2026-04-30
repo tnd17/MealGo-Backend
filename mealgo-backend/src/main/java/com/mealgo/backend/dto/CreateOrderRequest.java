@@ -9,7 +9,9 @@ import lombok.Setter;
 @Setter
 public class CreateOrderRequest {
 
-    private Long userId;
+    private Long userId; //co the null
+
+    private String email; // cho guest
 
     private String fullName;
 
