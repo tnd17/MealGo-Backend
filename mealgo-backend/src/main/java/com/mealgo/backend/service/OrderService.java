@@ -34,6 +34,9 @@ public class OrderService {
     private final UserRepository userRepository;
     private final FoodRepository foodRepository;
 
+    // =========================
+    // CREATE ORDER
+    // =========================
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
 
@@ -43,7 +46,7 @@ public class OrderService {
 
         boolean isGuest = request.getUserId() == null;
 
-        // guest bắt buộc có email
+        // 🔥 Guest bắt buộc có email
         if (isGuest && (request.getEmail() == null || request.getEmail().trim().isEmpty())) {
             return OrderResponse.fail("Email is required for guest");
         }
@@ -66,7 +69,7 @@ public class OrderService {
 
         User user = null;
 
-        // nếu là customer thì tìm user
+        // 🔹 Nếu là customer → lấy user
         if (!isGuest) {
             Optional<User> userOptional = userRepository.findById(request.getUserId());
 
@@ -80,6 +83,9 @@ public class OrderService {
         double totalAmount = 0;
         List<OrderItem> preparedItems = new ArrayList<>();
 
+        // =========================
+        // BUILD ORDER ITEMS
+        // =========================
         for (OrderItemRequest itemRequest : request.getItems()) {
 
             if (itemRequest.getFoodId() == null
@@ -110,7 +116,9 @@ public class OrderService {
             return OrderResponse.fail("No valid items");
         }
 
-        // tạo order
+        // =========================
+        // CREATE ORDER
+        // =========================
         Order order = new Order();
 
         order.setUser(user); // guest = null
@@ -131,27 +139,49 @@ public class OrderService {
         order.setNote(request.getNote());
 
         order.setTotalAmount(totalAmount);
+
+        // 🔥 LUÔN bắt đầu từ PENDING
         order.setStatus("PENDING");
 
         order.setPaymentMethod(request.getPaymentMethod());
-        order.setPaymentStatus("UNPAID");
+
+        // =========================
+        // 🔥 PAYMENT LOGIC CHUẨN
+        // =========================
+        if (!isGuest && "CARD".equals(request.getPaymentMethod())) {
+            // Customer + CARD → auto paid
+            order.setPaymentStatus("PAID");
+            order.setPaidAt(LocalDateTime.now());
+        } else {
+            // Guest CARD hoặc COD → unpaid
+            order.setPaymentStatus("UNPAID");
+        }
 
         order = orderRepository.save(order);
 
-        // save order items
+        // =========================
+        // SAVE ITEMS
+        // =========================
         for (OrderItem item : preparedItems) {
             item.setOrder(order);
             orderItemRepository.save(item);
         }
 
-        // gửi email xác nhận
-        emailService.sendOrderEmail(order.getEmail(), order.getId());
+        // =========================
+        // 🔥 SEND EMAIL (chỉ khi cần)
+        // =========================
+        if (isGuest && "CARD".equals(request.getPaymentMethod())) {
+            emailService.sendOrderEmail(order.getEmail(), order, preparedItems);
+        }
 
         return OrderResponse.success(
                 "Order created successfully",
                 order.getId());
     }
 
+    // =========================
+    // USER ORDER HISTORY
+    // =========================
     public List<OrderHistoryResponse> getOrdersByUser(Long userId) {
 
         List<Order> orders = orderRepository.findByUserIdOrderByIdDesc(userId);
@@ -183,6 +213,9 @@ public class OrderService {
         return result;
     }
 
+    // =========================
+    // ADMIN GET ALL ORDERS
+    // =========================
     public List<AdminOrderResponse> getAllOrdersForAdmin() {
 
         List<Order> orders = orderRepository.findAllByOrderByIdDesc();
@@ -205,6 +238,9 @@ public class OrderService {
         return result;
     }
 
+    // =========================
+    // UPDATE ORDER STATUS
+    // =========================
     @Transactional
     public String updateOrderStatus(Long orderId, String status) {
 
@@ -215,6 +251,7 @@ public class OrderService {
         }
 
         Order order = optional.get();
+
         order.setStatus(status);
 
         orderRepository.save(order);
@@ -222,6 +259,9 @@ public class OrderService {
         return "Updated successfully";
     }
 
+    // =========================
+    // FAKE PAYMENT (CARD SIMULATION)
+    // =========================
     @Transactional
     public String payOrder(Long orderId, boolean success) {
 
@@ -235,7 +275,6 @@ public class OrderService {
 
         if (success) {
             order.setPaymentStatus("PAID");
-            order.setStatus("CONFIRMED");
             order.setPaidAt(LocalDateTime.now());
         } else {
             order.setPaymentStatus("FAILED");
@@ -244,5 +283,35 @@ public class OrderService {
         orderRepository.save(order);
 
         return "Updated";
+    }
+
+    // =========================
+    // 🔥 ADMIN CONFIRM PAYMENT (GUEST)
+    // =========================
+    @Transactional
+    public String confirmPayment(Long orderId) {
+
+        Optional<Order> optional = orderRepository.findById(orderId);
+
+        if (optional.isEmpty()) {
+            return "Order not found";
+        }
+
+        Order order = optional.get();
+
+        // chỉ update payment
+        order.setPaymentStatus("PAID");
+        order.setPaidAt(LocalDateTime.now());
+
+        orderRepository.save(order);
+
+        // gửi mail confirm
+        if (order.getEmail() != null) {
+            emailService.sendConfirmPaymentEmail(
+                    order.getEmail(),
+                    order.getId());
+        }
+
+        return "Payment confirmed";
     }
 }

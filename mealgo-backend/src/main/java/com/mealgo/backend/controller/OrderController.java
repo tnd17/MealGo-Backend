@@ -52,4 +52,10 @@ public class OrderController {
 
         return orderService.payOrder(id, success);
     }
+
+    // admin confirm payment
+    @PutMapping("/{id}/confirm-payment")
+    public String confirmPayment(@PathVariable Long id) {
+        return orderService.confirmPayment(id);
+    }
 }
