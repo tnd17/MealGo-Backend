@@ -1,6 +1,8 @@
 package com.mealgo.backend.repository;
 
 import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import com.mealgo.backend.entity.Order;
 
@@ -10,4 +12,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // admin lấy toàn bộ đơn mới nhất trước
     List<Order> findAllByOrderByIdDesc();
+
+    Optional<Order> findByIdAndEmail(Long id, String email); // guest check order
 }

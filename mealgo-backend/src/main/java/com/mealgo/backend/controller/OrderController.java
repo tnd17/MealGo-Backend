@@ -2,6 +2,7 @@ package com.mealgo.backend.controller;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.mealgo.backend.dto.AdminOrderResponse;
@@ -57,5 +58,20 @@ public class OrderController {
     @PutMapping("/{id}/confirm-payment")
     public String confirmPayment(@PathVariable Long id) {
         return orderService.confirmPayment(id);
+    }
+
+    // guest get order
+    @GetMapping("/guest-track")
+    public ResponseEntity<?> trackGuestOrder(
+            @RequestParam Long orderId,
+            @RequestParam String email) {
+        OrderHistoryResponse response = orderService.getGuestOrder(orderId, email);
+
+        if (response == null) {
+            return ResponseEntity.badRequest()
+                    .body("Order not found");
+        }
+
+        return ResponseEntity.ok(response);
     }
 }
