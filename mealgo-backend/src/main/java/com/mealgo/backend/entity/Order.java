@@ -69,6 +69,10 @@ public class Order {
 
     private LocalDateTime paidAt;
 
+    private String voucherCode;
+
+    private Double discountAmount = 0.0;
+
     @OneToMany(mappedBy = "order")
     private List<OrderItem> orderItems;
 }

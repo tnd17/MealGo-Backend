@@ -24,4 +24,6 @@ public class CreateOrderRequest {
     private String paymentMethod;
 
     private List<OrderItemRequest> items;
+
+    private String voucherCode;
 }

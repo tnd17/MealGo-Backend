@@ -17,10 +17,12 @@ import com.mealgo.backend.entity.Food;
 import com.mealgo.backend.entity.Order;
 import com.mealgo.backend.entity.OrderItem;
 import com.mealgo.backend.entity.User;
+import com.mealgo.backend.entity.Voucher;
 import com.mealgo.backend.repository.FoodRepository;
 import com.mealgo.backend.repository.OrderItemRepository;
 import com.mealgo.backend.repository.OrderRepository;
 import com.mealgo.backend.repository.UserRepository;
+import com.mealgo.backend.repository.VoucherRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -33,6 +35,7 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
     private final FoodRepository foodRepository;
+    private final VoucherRepository voucherRepository;
 
     // CREATE ORDER
     @Transactional
@@ -79,6 +82,8 @@ public class OrderService {
         }
 
         double totalAmount = 0;
+        double discountAmount = 0;
+        String voucherCode = null;
         List<OrderItem> preparedItems = new ArrayList<>();
 
         // BUILD ORDER ITEMS
@@ -112,6 +117,33 @@ public class OrderService {
             return OrderResponse.fail("No valid items");
         }
 
+        if (!isGuest && request.getVoucherCode() != null) {
+
+            Optional<Voucher> optionalVoucher = voucherRepository.findByCode(request.getVoucherCode());
+
+            if (optionalVoucher.isPresent()) {
+
+                Voucher voucher = optionalVoucher.get();
+
+                boolean valid = voucher.getActive()
+                        && voucher.getUsedCount() < voucher.getUsageLimit()
+                        && voucher.getExpiryDate().isAfter(LocalDateTime.now())
+                        && totalAmount >= voucher.getMinOrderValue();
+
+                if (valid) {
+
+                    discountAmount = totalAmount * voucher.getDiscountPercent() / 100;
+
+                    voucherCode = voucher.getCode();
+
+                    voucher.setUsedCount(
+                            voucher.getUsedCount() + 1);
+
+                    voucherRepository.save(voucher);
+                }
+            }
+        }
+
         // CREATE ORDER
         Order order = new Order();
 
@@ -132,23 +164,27 @@ public class OrderService {
         order.setAddress(request.getAddress());
         order.setNote(request.getNote());
 
-        order.setTotalAmount(totalAmount);
+        // total sau giảm giá
+        double finalTotal = totalAmount - discountAmount;
 
-        // LUÔN bắt đầu từ PENDING
+        order.setVoucherCode(voucherCode);
+        order.setDiscountAmount(discountAmount);
+        order.setTotalAmount(finalTotal);
+
+        // luôn pending
         order.setStatus("PENDING");
 
         order.setPaymentMethod(request.getPaymentMethod());
 
-        // PAYMENT LOGIC
+        // payment logic
         if (!isGuest && "CARD".equals(request.getPaymentMethod())) {
-            // Customer + CARD → auto paid
             order.setPaymentStatus("PAID");
             order.setPaidAt(LocalDateTime.now());
         } else {
-            // Guest CARD hoặc COD → unpaid
             order.setPaymentStatus("UNPAID");
         }
 
+        // save SAU KHI set hết dữ liệu
         order = orderRepository.save(order);
 
         // SAVE ITEMS
@@ -296,27 +332,25 @@ public class OrderService {
     // GUEST GET ORDER
     public OrderHistoryResponse getGuestOrder(Long orderId, String email) {
 
-        Optional<Order> optional =
-                orderRepository.findByIdAndEmail(orderId, email);
-    
+        Optional<Order> optional = orderRepository.findByIdAndEmail(orderId, email);
+
         if (optional.isEmpty()) {
             return null;
         }
-    
+
         Order order = optional.get();
-    
+
         List<String> itemNames = new ArrayList<>();
-    
+
         if (order.getOrderItems() != null) {
             for (OrderItem item : order.getOrderItems()) {
                 itemNames.add(
                         item.getFood().getName()
                                 + " x"
-                                + item.getQuantity()
-                );
+                                + item.getQuantity());
             }
         }
-    
+
         return new OrderHistoryResponse(
                 order.getId(),
                 order.getTotalAmount(),
@@ -324,7 +358,6 @@ public class OrderService {
                 order.getCreatedAt().toString(),
                 order.getPaymentMethod(),
                 order.getPaymentStatus(),
-                itemNames
-        );
+                itemNames);
     }
 }
